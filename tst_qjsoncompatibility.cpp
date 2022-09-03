@@ -23,6 +23,7 @@ private slots:
     void test_5_unicode_1();
     void test_6_escapeseq_1();
     void test_7_incaps_structures_1();
+    void test_8_to_string();
 
 private:
     const QString scopeDirPath{"qjson"};
@@ -474,6 +475,43 @@ void QJsonCompatibility::test_7_incaps_structures_1()
     QCOMPARE(r_obj_lvl3[u8"\u2211"].toInt(),200);
 
     dir.removeRecursively();
+}
+
+struct Struct {
+    std::string somestr;
+    short       someval;
+    Struct*     other{nullptr};
+};
+jjson17::Object asJsonObject(const Struct& s)
+{
+    namespace json = jjson17;
+    json::Object obj{
+                {"somestr",s.somestr},
+                {"someval",s.someval},
+                };
+    if(s.other)
+         obj.insert({"other",asJsonObject(*s.other)});
+    else obj.insert({"other",nullptr});
+    return obj;
+};
+void QJsonCompatibility::test_8_to_string()
+{
+    namespace json = jjson17;
+
+    //QSKIP("ALREADY COMPLETE");
+    Struct s1 {"SSS",-10};
+    Struct s2 {"GGG",-100,&s1};
+    json::Record r = {"TheRecord",asJsonObject(s2)};
+    std::string etalon = "\"TheRecord\":\t{\n"
+                         "\t\"other\":\t\t{\n"
+                             "\t\t\"other\":\tnull,\n"
+                             "\t\t\"somestr\":\t\"SSS\",\n"
+                             "\t\t\"someval\":\t-10\n"
+                         "\t},\n"
+                         "\t\"somestr\":\t\"GGG\",\n"
+                         "\t\"someval\":\t-100\n"
+                         "}";
+    QCOMPARE(json::to_string(r),etalon);
 }
 
 QTEST_APPLESS_MAIN(QJsonCompatibility)
