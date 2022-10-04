@@ -502,16 +502,19 @@ void QJsonCompatibility::test_8_to_string()
     Struct s1 {"SSS",-10};
     Struct s2 {"GGG",-100,&s1};
     json::Record r = {"TheRecord",asJsonObject(s2)};
-    std::string etalon = "\"TheRecord\":\t{\n"
-                         "\t\"other\":\t\t{\n"
-                             "\t\t\"other\":\tnull,\n"
-                             "\t\t\"somestr\":\t\"SSS\",\n"
-                             "\t\t\"someval\":\t-10\n"
+    std::string etalon = "\"TheRecord\":\t\n"
+                         "{\n"
+                            "\t\"other\":\t\n"
+                            "\t{\n"
+                            "\t\t\"other\":\tnull,\n"
+                            "\t\t\"somestr\":\t\"SSS\",\n"
+                            "\t\t\"someval\":\t-10\n"
                          "\t},\n"
                          "\t\"somestr\":\t\"GGG\",\n"
                          "\t\"someval\":\t-100\n"
                          "}";
-    QCOMPARE(json::to_string(r),etalon);
+    auto result = json::to_string(r);
+    QCOMPARE(result,etalon);
 }
 
 QTEST_APPLESS_MAIN(QJsonCompatibility)
