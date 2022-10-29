@@ -30,6 +30,7 @@ private slots:
     void test_7_incaps_structures_1();
     void test_8_to_string();
     void perf_1_dirscan();
+    void perf_2_dirscan();
 
 private:
     const QString scopeDirPath{"qjson"};
@@ -543,44 +544,50 @@ static PathType getBinDir() {
 }
 
 //recursive dirscan
-static jjson17::Object subScanFunc (std::filesystem::directory_entry entry, int depth)
+static jjson17::Object subScanFunc (std::filesystem::directory_entry entry, int depth, const int MAX_DEPTH=2, const int MAX_ELEMS_AT_LVL=-1)
 {
     namespace json = jjson17;
     namespace fs = std::filesystem;
 
-    static const int MAX_DEPTH = 2;
     json::Object obj {
         {"Directory",entry.is_directory()},
         {"Size",entry.file_size()},
-        {"Permitions",static_cast<int>(entry.status().permissions())}
+        {"Permitions",static_cast<int>(entry.status().permissions())},
+        {"Depth",depth}
     };
 
     if(entry.is_directory() && depth < MAX_DEPTH)
     {
         depth++;
         json::Object content;
-        for(const auto& d : fs::directory_iterator(entry,fs::directory_options::skip_permission_denied))
-            content.insert( {d.path().filename().generic_string() , subScanFunc(d,depth)} );//content.insert( {d.path().filename().u8string() , subScanFunc(d,depth)} );
+        int cnt = MAX_ELEMS_AT_LVL;
+        for(const auto& d : fs::directory_iterator(entry,fs::directory_options::skip_permission_denied)) {
+            content.insert( {d.path().filename().generic_string() , subScanFunc(d,depth,MAX_DEPTH,MAX_ELEMS_AT_LVL)} );//content.insert( {d.path().filename().u8string() , subScanFunc(d,depth)} );
+            if(cnt--==0) break;
+        }
         obj.insert({"content",content});
     }
     return obj;
 }
 //recursive dirscan
-static QJsonObject subScanFunc (const QFileInfo& entry, int depth)
+static QJsonObject subScanFunc (const QFileInfo& entry, int depth, const int MAX_DEPTH=2, const int MAX_ELEMS_AT_LVL=-1)
 {
-    static const int MAX_DEPTH = 2;
     QJsonObject obj {
         {"Directory",entry.isDir()},
         {"Size",entry.size()},
-        {"Permitions",static_cast<int>(entry.permissions())}
+        {"Permitions",static_cast<int>(entry.permissions())},
+        {"Depth",depth}
     };
 
     if(entry.isDir() && depth < MAX_DEPTH)
     {
         depth++;
         QJsonObject content;
-        foreach(const auto& d , QDir(entry.filePath()).entryInfoList(QDir::NoDotAndDotDot|QDir::AllEntries))
-            content.insert(d.fileName(),subScanFunc(d,depth));
+        int cnt = MAX_ELEMS_AT_LVL;
+        foreach(const auto& d , QDir(entry.filePath()).entryInfoList(QDir::NoDotAndDotDot|QDir::AllEntries)) {
+            content.insert(d.fileName(),subScanFunc(d,depth,MAX_DEPTH,MAX_ELEMS_AT_LVL));
+            if(cnt--==0) break;
+        }
         obj.insert("content",content);
     }
     return obj;
@@ -592,6 +599,8 @@ void QJsonCompatibility::perf_1_dirscan()
     namespace json = jjson17;
     namespace fs = std::filesystem;
     using namespace std::chrono;
+
+    //QSKIP("ALREADY COMPLETE");
 
     QString dirpath = scopeDirPath+"/perf_1_dirscan";
     QDir dir("./");
@@ -665,6 +674,91 @@ void QJsonCompatibility::perf_1_dirscan()
     qDebug()  << "JJSON vs QJSON"<< double(jjTotal)/qTotal<<"the less the best";
 
     dir.removeRecursively();
+}
+
+void QJsonCompatibility::perf_2_dirscan()
+{
+    namespace json = jjson17;
+    namespace fs = std::filesystem;
+    using namespace std::chrono;
+
+    //QSKIP("ALREADY COMPLETE");
+
+    const int MAX_DEPTH = 20;
+    const int MAX_ELEMS_AT_LVL = 20;
+
+    QString dirpath = scopeDirPath+"/perf_2_dirscan";
+    QDir dir("./");
+         dir.mkpath(dirpath);
+         dir.cd(dirpath);
+
+    //....... std-way  .......
+    uint32_t jjTotal{0};
+    {
+        fs::directory_entry stdDir("C:/");
+        QVERIFY(stdDir.exists());
+        auto before = steady_clock::now();
+        json::Object jsonDirRoot = subScanFunc(stdDir,0,MAX_DEPTH,MAX_ELEMS_AT_LVL);
+        auto after = steady_clock::now();
+        auto ms = duration_cast<std::chrono::milliseconds>(after - before);
+        qDebug() << "JJSON17. time to build :"<<ms.count()<<"ms";
+        jjTotal+=ms.count();
+        QString filepath = dirpath+"/test_jj17.json";
+        before = steady_clock::now();
+      #ifdef RAW_OFSTREAM
+            std::ofstream ofs;
+                          ofs.precision(12);
+                          ofs.open(filepath.toStdString());
+                          ofs << jsonDirRoot;
+                          ofs.close();
+      #else
+
+            std::stringstream ss;
+                              ss.precision(12);
+                              ss << jsonDirRoot;
+            std::ofstream ofs;
+                          ofs.open(filepath.toStdString());
+                          ofs << ss.str();
+                          ofs.close();
+      #endif
+        after = steady_clock::now();
+        ms = duration_cast<std::chrono::milliseconds>(after - before);
+        jjTotal+=ms.count();
+        qDebug() << "JJSON17. time to write :"<<ms.count()<<"ms";
+        qDebug() << "JJSON17. total :"<<jjTotal<<"ms";
+    }
+    //........................
+    //....... QT-way  ........
+
+    uint32_t qTotal{0};
+    {
+        QFileInfo qDir("C:/");
+        QVERIFY(qDir.exists());
+        auto before = steady_clock::now();
+        auto jsonDirRoot = subScanFunc(qDir,0,MAX_DEPTH,MAX_ELEMS_AT_LVL);
+        auto after = steady_clock::now();
+        auto ms = duration_cast<std::chrono::milliseconds>(after - before);
+        qDebug() << "QJSON. time to build :"<<ms.count()<<"ms";
+        qTotal+=ms.count();
+
+        QString filepath = dirpath+"/test_q.json";
+        before = steady_clock::now();
+            QJsonDocument qjsdoc(jsonDirRoot);
+            QFile   f(filepath);
+                    f.open(QIODevice::WriteOnly);
+                    f.write(qjsdoc.toJson());
+                    f.close();
+        after = steady_clock::now();
+        ms = duration_cast<std::chrono::milliseconds>(after - before);
+        qTotal+=ms.count();
+        qDebug() << "QJSON. time to write :"<<ms.count()<<"ms";
+        qDebug() << "QJSON. total :"<<qTotal<<"ms";
+    }
+
+    //........................
+    qDebug()  << "JJSON vs QJSON"<< double(jjTotal)/qTotal<<"the less the best";
+
+    //dir.removeRecursively();
 }
 
 QTEST_APPLESS_MAIN(QJsonCompatibility)
