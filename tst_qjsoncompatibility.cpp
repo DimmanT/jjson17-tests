@@ -32,6 +32,8 @@ private slots:
     void perf_1_dirscan();
     void perf_2_dirscan();
 
+
+    void parse_1_numbers();
 private:
     const QString scopeDirPath{"qjson"};
 
@@ -59,7 +61,7 @@ QJsonCompatibility::~QJsonCompatibility()
 
 void QJsonCompatibility::validation_self_test()
 {
-    //QSKIP("ALREADY VALIDATED");
+    QSKIP("ALREADY VALIDATED");
 
     QString dirpath = scopeDirPath+"/validation_self_test";
     QDir dir("./");
@@ -112,7 +114,7 @@ void QJsonCompatibility::validation_self_test()
 
 void QJsonCompatibility::test_1_latin()
 {
-    //QSKIP("ALREADY COMPLETE");
+    QSKIP("ALREADY COMPLETE");
 
     QString dirpath = scopeDirPath+"/test_1_latin";
     QDir dir("./");
@@ -150,7 +152,7 @@ void QJsonCompatibility::test_1_latin()
 
 void QJsonCompatibility::test_2_reals()
 {
-    //QSKIP("ALREADY COMPLETE");
+    QSKIP("ALREADY COMPLETE");
 
     QString dirpath = scopeDirPath+"/test_2_reals";
     QDir dir("./");
@@ -188,7 +190,7 @@ void QJsonCompatibility::test_2_reals()
 
 void QJsonCompatibility::test_3_integers()
 {
-    //QSKIP("ALREADY COMPLETE");
+    QSKIP("ALREADY COMPLETE");
     QString dirpath = scopeDirPath+"/test_3_integers";
     QDir dir("./");
          dir.mkpath(dirpath);
@@ -245,7 +247,7 @@ struct Test_Staff {
 void QJsonCompatibility::test_4_mix_latin_nums()
 {
     using namespace jjson17;
-    //QSKIP("ALREADY COMPLETE");
+    QSKIP("ALREADY COMPLETE");
     QString dirpath = scopeDirPath+"/test_4_mix_latin_nums";
     QDir dir("./");
          dir.mkpath(dirpath);
@@ -356,7 +358,7 @@ void QJsonCompatibility::test_4_mix_latin_nums()
 void QJsonCompatibility::test_5_unicode_1()
 {
     using namespace jjson17;
-    //QSKIP("ALREADY COMPLETE");
+    QSKIP("ALREADY COMPLETE");
     QString dirpath = scopeDirPath+"/test_5_unicode_1";
     QDir dir("./");
          dir.mkpath(dirpath);
@@ -409,7 +411,7 @@ void QJsonCompatibility::test_5_unicode_1()
 void QJsonCompatibility::test_6_escapeseq_1()
 {
     using namespace jjson17;
-    //QSKIP("ALREADY COMPLETE");
+    QSKIP("ALREADY COMPLETE");
     QString dirpath = scopeDirPath+"/test_6_escapeseq_1";
     QDir dir("./");
          dir.mkpath(dirpath);
@@ -458,7 +460,7 @@ void QJsonCompatibility::test_6_escapeseq_1()
 void QJsonCompatibility::test_7_incaps_structures_1()
 {
     using namespace jjson17;
-    //QSKIP("ALREADY COMPLETE");
+    QSKIP("ALREADY COMPLETE");
     QString dirpath = scopeDirPath+"/test_7_incaps_structures_1";
     QDir dir("./");
          dir.mkpath(dirpath);
@@ -512,7 +514,7 @@ void QJsonCompatibility::test_8_to_string()
 {
     namespace json = jjson17;
 
-    //QSKIP("ALREADY COMPLETE");
+    QSKIP("ALREADY COMPLETE");
     Struct s1 {"SSS",-10};
     Struct s2 {"GGG",-100,&s1};
     json::Record r = {"TheRecord",asJsonObject(s2)};
@@ -600,7 +602,7 @@ void QJsonCompatibility::perf_1_dirscan()
     namespace fs = std::filesystem;
     using namespace std::chrono;
 
-    //QSKIP("ALREADY COMPLETE");
+    QSKIP("ALREADY COMPLETE");
 
     QString dirpath = scopeDirPath+"/perf_1_dirscan";
     QDir dir("./");
@@ -682,7 +684,7 @@ void QJsonCompatibility::perf_2_dirscan()
     namespace fs = std::filesystem;
     using namespace std::chrono;
 
-    //QSKIP("ALREADY COMPLETE");
+    QSKIP("ALREADY COMPLETE");
 
     const int MAX_DEPTH = 20;
     const int MAX_ELEMS_AT_LVL = 20;
@@ -757,6 +759,83 @@ void QJsonCompatibility::perf_2_dirscan()
 
     //........................
     qDebug()  << "JJSON vs QJSON"<< double(jjTotal)/qTotal<<"the less the best";
+
+    dir.removeRecursively();
+}
+
+void QJsonCompatibility::parse_1_numbers()
+{
+    using namespace std;
+    using namespace jjson17;
+
+    QString dirpath  = scopeDirPath+"/parse_1_numbers";
+    QString filepath = dirpath+"/test_q.json";
+    QDir dir("./");
+         dir.mkpath(dirpath);
+         dir.cd(dirpath);
+    QJsonObject qjsobj;
+                qjsobj.insert("First"  ,1);
+                qjsobj.insert("Second" ,2);
+                qjsobj.insert("Third"  ,1.11);
+                qjsobj.insert("Forth"  ,-9);
+                qjsobj.insert("Fifth"  ,-0.625);
+                qjsobj.insert("Sixth"  ,0);
+                qjsobj.insert("Seventh",-2.125);
+    QJsonDocument qjsdoc(qjsobj);
+    QFile   f(filepath);
+            f.open(QIODevice::WriteOnly);
+            f.write(qjsdoc.toJson());
+            f.close();
+    ifstream infile;
+             infile.open(filepath.toStdString());
+    auto jj17doc = parse(infile);
+             infile.close();
+    QVERIFY(holds_alternative<Object>(jj17doc));
+    Object& jj17obj = get<Object>(jj17doc);
+    QCOMPARE(jj17obj.size(),7);
+    QVERIFY(holds_alternative<int64_t>(jj17obj["First"  ]));
+    QVERIFY(holds_alternative<int64_t>(jj17obj["Second" ]));
+    QVERIFY(holds_alternative<double >(jj17obj["Third"  ]));
+    QVERIFY(holds_alternative<int64_t>(jj17obj["Forth"  ]));
+    QVERIFY(holds_alternative<double >(jj17obj["Fifth"  ]));
+    QVERIFY(holds_alternative<int64_t>(jj17obj["Sixth"  ]));
+    QVERIFY(holds_alternative<double >(jj17obj["Seventh"]));
+    QCOMPARE(get<int64_t>(jj17obj["First"  ]),1);
+    QCOMPARE(get<int64_t>(jj17obj["Second" ]),2);
+    QCOMPARE(get<double >(jj17obj["Third"  ]),1.11);
+    QCOMPARE(get<int64_t>(jj17obj["Forth"  ]),-9);
+    QCOMPARE(get<double >(jj17obj["Fifth"  ]),-0.625);
+    QCOMPARE(get<int64_t>(jj17obj["Sixth"  ]),0);
+    QCOMPARE(get<double >(jj17obj["Seventh"]),-2.125);
+
+    QJsonArray qjsarr = { 3,4,2.55,-390,-0.078,0,-10.001 };
+    qjsdoc.setArray(qjsarr);
+    filepath = dirpath+"/test_q2.json";
+        f.setFileName(filepath);
+        f.open(QIODevice::WriteOnly);
+        f.write(qjsdoc.toJson());
+        f.close();
+    infile.open(filepath.toStdString());
+    jj17doc = parse(infile);
+    infile.close();
+    QVERIFY(holds_alternative<Array>(jj17doc));
+    Array& jj17arr = get<Array>(jj17doc);
+    QCOMPARE(jj17arr.size(),7);
+    QVERIFY(holds_alternative<int64_t>(jj17arr[0]));
+    QVERIFY(holds_alternative<int64_t>(jj17arr[1]));
+    QVERIFY(holds_alternative<double >(jj17arr[2]));
+    QVERIFY(holds_alternative<int64_t>(jj17arr[3]));
+    QVERIFY(holds_alternative<double >(jj17arr[4]));
+    QVERIFY(holds_alternative<int64_t>(jj17arr[5]));
+    QVERIFY(holds_alternative<double >(jj17arr[6]));
+    QCOMPARE(get<int64_t>(jj17arr[0]),3);
+    QCOMPARE(get<int64_t>(jj17arr[1]),4);
+    QCOMPARE(get<double >(jj17arr[2]),2.55);
+    QCOMPARE(get<int64_t>(jj17arr[3]),-390);
+    QCOMPARE(get<double >(jj17arr[4]),-0.078);
+    QCOMPARE(get<int64_t>(jj17arr[5]),0);
+    QCOMPARE(get<double >(jj17arr[6]),-10.001);
+
 
     //dir.removeRecursively();
 }
