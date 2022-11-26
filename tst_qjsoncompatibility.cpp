@@ -29,11 +29,16 @@ private slots:
     void test_6_escapeseq_1();
     void test_7_incaps_structures_1();
     void test_8_to_string();
+    void test_9_implicit_cast();
     void perf_1_dirscan();
     void perf_2_dirscan();
 
 
     void parse_1_numbers();
+    void parse_2_numbers_self();
+    void parse_3_latin();
+    void parse_3_latin_self();
+    void parse_4_mix_latin_nums();
 private:
     const QString scopeDirPath{"qjson"};
 
@@ -61,7 +66,7 @@ QJsonCompatibility::~QJsonCompatibility()
 
 void QJsonCompatibility::validation_self_test()
 {
-    QSKIP("ALREADY VALIDATED");
+    //QSKIP("ALREADY VALIDATED");
 
     QString dirpath = scopeDirPath+"/validation_self_test";
     QDir dir("./");
@@ -114,7 +119,7 @@ void QJsonCompatibility::validation_self_test()
 
 void QJsonCompatibility::test_1_latin()
 {
-    QSKIP("ALREADY COMPLETE");
+    //QSKIP("ALREADY COMPLETE");
 
     QString dirpath = scopeDirPath+"/test_1_latin";
     QDir dir("./");
@@ -152,7 +157,7 @@ void QJsonCompatibility::test_1_latin()
 
 void QJsonCompatibility::test_2_reals()
 {
-    QSKIP("ALREADY COMPLETE");
+    //QSKIP("ALREADY COMPLETE");
 
     QString dirpath = scopeDirPath+"/test_2_reals";
     QDir dir("./");
@@ -164,10 +169,16 @@ void QJsonCompatibility::test_2_reals()
     double      val2  = 37e10   ;
     double      val3  = 1./3    ;
     double      val4  = 1.7/1e10;
+    float       val5  = 1.25f;
+    float       val6  = -0.5625f;
+    float       val7  = 0.375f;
     jjson17::Array  w_arr{ val1,
                            val2,
                            val3,
-                           val4
+                           val4,
+                           val5,
+                           val6,
+                           val7
                          };
 
     std::ofstream ofs;
@@ -184,13 +195,15 @@ void QJsonCompatibility::test_2_reals()
     QCOMPARE(r_arr[1].toDouble(), val2);
     QCOMPARE(r_arr[2].toDouble(), val3);
     QCOMPARE(r_arr[3].toDouble(), val4);
-
+    QCOMPARE(r_arr[4].toDouble(), val5);
+    QCOMPARE(r_arr[5].toDouble(), val6);
+    QCOMPARE(r_arr[6].toDouble(), val7);
     dir.removeRecursively();
 }
 
 void QJsonCompatibility::test_3_integers()
 {
-    QSKIP("ALREADY COMPLETE");
+    //QSKIP("ALREADY COMPLETE");
     QString dirpath = scopeDirPath+"/test_3_integers";
     QDir dir("./");
          dir.mkpath(dirpath);
@@ -206,6 +219,8 @@ void QJsonCompatibility::test_3_integers()
     char           val6  = -70;
     uint8_t        val7  = 33;
     int8_t         val8  = -33;
+
+    jjson17::Value v{3ull};
 
     jjson17::Array  w_arr{ val0, val1, val2,
                            val3, val4, val5,
@@ -247,7 +262,8 @@ struct Test_Staff {
 void QJsonCompatibility::test_4_mix_latin_nums()
 {
     using namespace jjson17;
-    QSKIP("ALREADY COMPLETE");
+    //QSKIP("ALREADY COMPLETE");
+    try {
     QString dirpath = scopeDirPath+"/test_4_mix_latin_nums";
     QDir dir("./");
          dir.mkpath(dirpath);
@@ -353,12 +369,17 @@ void QJsonCompatibility::test_4_mix_latin_nums()
         QVERIFY(r_obj_lvl2["subordinates"].isNull());
 
     dir.removeRecursively();
+    } catch(const std::exception& e) {
+        QFAIL(("EXCEPTION: "+QString(e.what())).toLatin1());
+    } catch(...) {
+        QFAIL("UNSTD EXCEPTION");
+    }
 }
 
 void QJsonCompatibility::test_5_unicode_1()
 {
     using namespace jjson17;
-    QSKIP("ALREADY COMPLETE");
+    //QSKIP("ALREADY COMPLETE");
     QString dirpath = scopeDirPath+"/test_5_unicode_1";
     QDir dir("./");
          dir.mkpath(dirpath);
@@ -411,7 +432,7 @@ void QJsonCompatibility::test_5_unicode_1()
 void QJsonCompatibility::test_6_escapeseq_1()
 {
     using namespace jjson17;
-    QSKIP("ALREADY COMPLETE");
+    //QSKIP("ALREADY COMPLETE");
     QString dirpath = scopeDirPath+"/test_6_escapeseq_1";
     QDir dir("./");
          dir.mkpath(dirpath);
@@ -460,7 +481,7 @@ void QJsonCompatibility::test_6_escapeseq_1()
 void QJsonCompatibility::test_7_incaps_structures_1()
 {
     using namespace jjson17;
-    QSKIP("ALREADY COMPLETE");
+    //QSKIP("ALREADY COMPLETE");
     QString dirpath = scopeDirPath+"/test_7_incaps_structures_1";
     QDir dir("./");
          dir.mkpath(dirpath);
@@ -514,7 +535,7 @@ void QJsonCompatibility::test_8_to_string()
 {
     namespace json = jjson17;
 
-    QSKIP("ALREADY COMPLETE");
+    //QSKIP("ALREADY COMPLETE");
     Struct s1 {"SSS",-10};
     Struct s2 {"GGG",-100,&s1};
     json::Record r = {"TheRecord",asJsonObject(s2)};
@@ -531,6 +552,43 @@ void QJsonCompatibility::test_8_to_string()
                          "}";
     auto result = json::to_string(r);
     QCOMPARE(result,etalon);
+}
+
+void QJsonCompatibility::test_9_implicit_cast()
+{
+    using namespace jjson17;
+    using std::string, std::get;
+    //QSKIP("ALREADY COMPLETE");
+
+    Array  testArr = {
+        "ThisIsString",3.14,9.8,0.28f,nullptr,8,true,Array{11.,12.,14.},Object{{"Y-Y",70},{"X-X","Xerx"}}
+    };
+
+    string   str = testArr[0];
+    double   pi  = testArr[1];
+    unsigned g   = testArr[2];                  //Неавное приведение выполняет также неявное преобразование из floating-point в integer мат-округлением
+    double   d   = testArr[3];
+    auto     nul = get<nullptr_t>(testArr[4]);
+    int      i   = testArr[5];
+    double   i2d = testArr[5];                  //Неавное приведение выполняет также неявное преобразование из integer в floating-point
+    bool     b   = testArr[6];
+    Array    arr = testArr[7];
+    Object   obj = testArr[8];
+
+    QCOMPARE(str,get<string>(testArr[0]));
+    QCOMPARE(pi ,get<double>(testArr[1]));
+    QCOMPARE(g  ,std::round(get<double>(testArr[2])));
+    QCOMPARE(d  ,get<double >(testArr[3]));
+    QCOMPARE(nul,nullptr);
+    QCOMPARE(i  ,get<int64_t>(testArr[5]));
+    QCOMPARE(i2d,double(get<int64_t>(testArr[5])));
+    QCOMPARE(b  ,get<bool   >(testArr[6]));
+    QCOMPARE(arr,get<Array  >(testArr[7]));
+    QCOMPARE(obj,get<Object >(testArr[8]));
+
+    bool goodException{false};
+    try{int g = get<int64_t>(testArr[2]); Q_UNUSED(g); } catch(const std::bad_variant_access& e) {goodException=true;}
+    QVERIFY(goodException);
 }
 
 
@@ -602,7 +660,7 @@ void QJsonCompatibility::perf_1_dirscan()
     namespace fs = std::filesystem;
     using namespace std::chrono;
 
-    QSKIP("ALREADY COMPLETE");
+    //QSKIP("ALREADY COMPLETE");
 
     QString dirpath = scopeDirPath+"/perf_1_dirscan";
     QDir dir("./");
@@ -684,7 +742,7 @@ void QJsonCompatibility::perf_2_dirscan()
     namespace fs = std::filesystem;
     using namespace std::chrono;
 
-    QSKIP("ALREADY COMPLETE");
+    //QSKIP("ALREADY COMPLETE");
 
     const int MAX_DEPTH = 20;
     const int MAX_ELEMS_AT_LVL = 20;
@@ -768,6 +826,8 @@ void QJsonCompatibility::parse_1_numbers()
     using namespace std;
     using namespace jjson17;
 
+    //QSKIP("ALREADY COMPLETE");
+
     QString dirpath  = scopeDirPath+"/parse_1_numbers";
     QString filepath = dirpath+"/test_q.json";
     QDir dir("./");
@@ -793,6 +853,8 @@ void QJsonCompatibility::parse_1_numbers()
     QVERIFY(holds_alternative<Object>(jj17doc));
     Object& jj17obj = get<Object>(jj17doc);
     QCOMPARE(jj17obj.size(),7);
+    for(const auto& v : jj17obj)
+        qDebug() << QString::fromStdString(v.first) << v.second.index();
     QVERIFY(holds_alternative<int64_t>(jj17obj["First"  ]));
     QVERIFY(holds_alternative<int64_t>(jj17obj["Second" ]));
     QVERIFY(holds_alternative<double >(jj17obj["Third"  ]));
@@ -837,9 +899,403 @@ void QJsonCompatibility::parse_1_numbers()
     QCOMPARE(get<double >(jj17arr[6]),-10.001);
 
 
-    //dir.removeRecursively();
+    dir.removeRecursively();
 }
 
+void QJsonCompatibility::parse_2_numbers_self()
+{
+    using namespace std;
+    using namespace jjson17;
+    //QSKIP("ALREADY COMPLETE");
+
+    QString dirpath  = scopeDirPath+"/parse_2_numbers_self";
+    std::string filepath = dirpath.toStdString()+"/test_q.json";
+    QDir dir("./");
+         dir.mkpath(dirpath);
+         dir.cd(dirpath);
+    Object jj17obj;
+           jj17obj.insert({"First"  ,1      });
+           jj17obj.insert({"Second" ,2      });
+           jj17obj.insert({"Third"  ,1.11   });
+           jj17obj.insert({"Forth"  ,-9     });
+           jj17obj.insert({"Fifth"  ,-0.625 });
+           jj17obj.insert({"Sixth"  ,0      });
+           jj17obj.insert({"Seventh",-2.125 });
+    ofstream outfile;
+             outfile.open(filepath);
+             outfile << jj17obj;
+             outfile.close();
+    ifstream infile;
+             infile.open(filepath);
+    auto jj17doc = parse(infile);
+             infile.close();
+    QVERIFY(holds_alternative<Object>(jj17doc));
+    Object& jj17obj_back = get<Object>(jj17doc);
+    QCOMPARE(jj17obj_back.size(),7);
+    QVERIFY(holds_alternative<int64_t>(jj17obj_back["First"  ]));
+    QVERIFY(holds_alternative<int64_t>(jj17obj_back["Second" ]));
+    QVERIFY(holds_alternative<double >(jj17obj_back["Third"  ]));
+    QVERIFY(holds_alternative<int64_t>(jj17obj_back["Forth"  ]));
+    QVERIFY(holds_alternative<double >(jj17obj_back["Fifth"  ]));
+    QVERIFY(holds_alternative<int64_t>(jj17obj_back["Sixth"  ]));
+    QVERIFY(holds_alternative<double >(jj17obj_back["Seventh"]));
+    QCOMPARE(get<int64_t>(jj17obj_back["First"  ]),1);
+    QCOMPARE(get<int64_t>(jj17obj_back["Second" ]),2);
+    QCOMPARE(get<double >(jj17obj_back["Third"  ]),1.11);
+    QCOMPARE(get<int64_t>(jj17obj_back["Forth"  ]),-9);
+    QCOMPARE(get<double >(jj17obj_back["Fifth"  ]),-0.625);
+    QCOMPARE(get<int64_t>(jj17obj_back["Sixth"  ]),0);
+    QCOMPARE(get<double >(jj17obj_back["Seventh"]),-2.125);
+
+    Array jj17arr = { 3,4,2.55,-390,-0.078,0,-10.001 };
+    filepath = dirpath.toStdString()+"/test_q2.json";
+        outfile.open(filepath);
+        outfile << jj17arr;
+        outfile.close();
+    infile.open(filepath);
+    jj17doc = parse(infile);
+    infile.close();
+
+    QVERIFY(holds_alternative<Array>(jj17doc));
+    const Array& jj17arr_back = get<Array>(jj17doc);
+    QCOMPARE(jj17arr_back.size(),7);
+    QVERIFY(holds_alternative<int64_t>(jj17arr_back[0]));
+    QVERIFY(holds_alternative<int64_t>(jj17arr_back[1]));
+    QVERIFY(holds_alternative<double >(jj17arr_back[2]));
+    QVERIFY(holds_alternative<int64_t>(jj17arr_back[3]));
+    QVERIFY(holds_alternative<double >(jj17arr_back[4]));
+    QVERIFY(holds_alternative<int64_t>(jj17arr_back[5]));
+    QVERIFY(holds_alternative<double >(jj17arr_back[6]));
+    QCOMPARE(get<int64_t>(jj17arr_back[0]),3);
+    QCOMPARE(get<int64_t>(jj17arr_back[1]),4);
+    QCOMPARE(get<double >(jj17arr_back[2]),2.55);
+    QCOMPARE(get<int64_t>(jj17arr_back[3]),-390);
+    QCOMPARE(get<double >(jj17arr_back[4]),-0.078);
+    QCOMPARE(get<int64_t>(jj17arr_back[5]),0);
+    QCOMPARE(get<double >(jj17arr_back[6]),-10.001);
+
+
+    dir.removeRecursively();
+}
+void QJsonCompatibility::parse_3_latin()
+{
+    using namespace std;
+    using namespace jjson17;
+
+    //QSKIP("ALREADY COMPLETE");
+    QStringList testList = {"1","null","abracadabra","Jerom K."," Helicopter \"K52\"","moonlight\nsunlight","good morning, little mouse!","object{N}",""};
+
+    QString dirpath  = scopeDirPath+"/parse_3_latin";
+    QString filepath = dirpath+"/test_q.json";
+    QDir dir("./");
+         dir.mkpath(dirpath);
+         dir.cd(dirpath);
+    QJsonObject qjsobj;
+                qjsobj.insert("First 1"  , testList[0]);
+                qjsobj.insert("Second 2" , testList[1]);
+                qjsobj.insert("Third 3"  , testList[2]);
+                qjsobj.insert("Forth 4"  , testList[3]);
+                qjsobj.insert("Fifth 5"  , testList[4]);
+                qjsobj.insert("Sixth 6"  , testList[5]);
+                qjsobj.insert("Seventh 7", testList[6]);
+                qjsobj.insert("Eighth 8" , testList[7]);
+                qjsobj.insert("Ninth 9"  , testList[8]);
+    QJsonDocument qjsdoc(qjsobj);
+    QFile   f(filepath);
+            f.open(QIODevice::WriteOnly);
+            f.write(qjsdoc.toJson());
+            f.close();
+    ifstream infile;
+             infile.open(filepath.toStdString());
+    auto jj17doc = parse(infile);
+             infile.close();
+    QVERIFY(holds_alternative<Object>(jj17doc));
+    Object& jj17obj = get<Object>(jj17doc);
+    QCOMPARE(jj17obj.size(),testList.size());
+    for(const auto &[k,v] : jj17obj)
+        qDebug() << QString::fromStdString(to_string(Record(k,v)));
+    QVERIFY(holds_alternative<string>(jj17obj["First 1"  ]));
+    QVERIFY(holds_alternative<string>(jj17obj["Second 2" ]));
+    QVERIFY(holds_alternative<string>(jj17obj["Third 3"  ]));
+    QVERIFY(holds_alternative<string>(jj17obj["Forth 4"  ]));
+    QVERIFY(holds_alternative<string>(jj17obj["Fifth 5"  ]));
+    QVERIFY(holds_alternative<string>(jj17obj["Sixth 6"  ]));
+    QVERIFY(holds_alternative<string>(jj17obj["Seventh 7"]));
+    QVERIFY(holds_alternative<string>(jj17obj["Eighth 8" ]));
+    QVERIFY(holds_alternative<string>(jj17obj["Ninth 9"  ]));
+    for(const auto &[k,v] : jj17obj)
+        qDebug() << QString::fromStdString(get<string>(v));
+    QCOMPARE(get<string>(jj17obj["First 1"  ]), testList[0].toStdString());
+    QCOMPARE(get<string>(jj17obj["Second 2" ]), testList[1].toStdString());
+    QCOMPARE(get<string>(jj17obj["Third 3"  ]), testList[2].toStdString());
+    QCOMPARE(get<string>(jj17obj["Forth 4"  ]), testList[3].toStdString());
+    QCOMPARE(get<string>(jj17obj["Fifth 5"  ]), testList[4].toStdString());
+    QCOMPARE(get<string>(jj17obj["Sixth 6"  ]), testList[5].toStdString());
+    QCOMPARE(get<string>(jj17obj["Seventh 7"]), testList[6].toStdString());
+    QCOMPARE(get<string>(jj17obj["Eighth 8" ]), testList[7].toStdString());
+    QCOMPARE(get<string>(jj17obj["Ninth 9"  ]), testList[8].toStdString());
+
+    QJsonArray qjsarr;
+    foreach (const auto& s, testList)
+        qjsarr.append(s);
+    qjsdoc.setArray(qjsarr);
+    filepath = dirpath+"/test_q2.json";
+        f.setFileName(filepath);
+        f.open(QIODevice::WriteOnly);
+        f.write(qjsdoc.toJson());
+        f.close();
+    infile.open(filepath.toStdString());
+    jj17doc = parse(infile);
+    infile.close();
+    QVERIFY(holds_alternative<Array>(jj17doc));
+    Array& jj17arr = get<Array>(jj17doc);
+    QCOMPARE(jj17arr.size(),testList.size());
+    QVERIFY(holds_alternative<string>(jj17arr[0]));
+    QVERIFY(holds_alternative<string>(jj17arr[1]));
+    QVERIFY(holds_alternative<string>(jj17arr[2]));
+    QVERIFY(holds_alternative<string>(jj17arr[3]));
+    QVERIFY(holds_alternative<string>(jj17arr[4]));
+    QVERIFY(holds_alternative<string>(jj17arr[5]));
+    QVERIFY(holds_alternative<string>(jj17arr[6]));
+    QVERIFY(holds_alternative<string>(jj17arr[7]));
+    QVERIFY(holds_alternative<string>(jj17arr[8]));
+    QCOMPARE(get<string>(jj17arr[0]), testList[0].toStdString());
+    QCOMPARE(get<string>(jj17arr[1]), testList[1].toStdString());
+    QCOMPARE(get<string>(jj17arr[2]), testList[2].toStdString());
+    QCOMPARE(get<string>(jj17arr[3]), testList[3].toStdString());
+    QCOMPARE(get<string>(jj17arr[4]), testList[4].toStdString());
+    QCOMPARE(get<string>(jj17arr[5]), testList[5].toStdString());
+    QCOMPARE(get<string>(jj17arr[6]), testList[6].toStdString());
+    QCOMPARE(get<string>(jj17arr[7]), testList[7].toStdString());
+    QCOMPARE(get<string>(jj17arr[8]), testList[8].toStdString());
+
+    dir.removeRecursively();
+}
+
+void QJsonCompatibility::parse_3_latin_self()
+{
+    using namespace std;
+    using namespace jjson17;
+
+    //QSKIP("ALREADY COMPLETE");
+    vector<string> testList = {"1","null","abracadabra","Jerom K."," Helicopter \"K52\"","moonlight\nsunlight","good morning, little mouse!","object{N}",""};
+
+    QString dirpath = scopeDirPath+"/parse_3_latin_self";
+    string filepath = dirpath.toStdString()+"/test_q.json";
+    QDir dir("./");
+         dir.mkpath(dirpath);
+         dir.cd(dirpath);
+    Object jj17obj_w;
+                jj17obj_w.insert({"First 1"  , testList[0]});
+                jj17obj_w.insert({"Second 2" , testList[1]});
+                jj17obj_w.insert({"Third 3"  , testList[2]});
+                jj17obj_w.insert({"Forth 4"  , testList[3]});
+                jj17obj_w.insert({"Fifth 5"  , testList[4]});
+                jj17obj_w.insert({"Sixth 6"  , testList[5]});
+                jj17obj_w.insert({"Seventh 7", testList[6]});
+                jj17obj_w.insert({"Eighth 8" , testList[7]});
+                jj17obj_w.insert({"Ninth 9"  , testList[8]});
+    ofstream outfile;
+             outfile.open(filepath);
+             outfile << jj17obj_w;
+             outfile.close();
+    ifstream infile;
+             infile.open(filepath);
+    auto jj17doc = parse(infile);
+             infile.close();
+    QVERIFY(holds_alternative<Object>(jj17doc));
+    Object& jj17obj = get<Object>(jj17doc);
+    QCOMPARE(jj17obj.size(),testList.size());
+    for(const auto &[k,v] : jj17obj)
+        qDebug() << QString::fromStdString(to_string(Record(k,v)));
+    QVERIFY(holds_alternative<string>(jj17obj["First 1"  ]));
+    QVERIFY(holds_alternative<string>(jj17obj["Second 2" ]));
+    QVERIFY(holds_alternative<string>(jj17obj["Third 3"  ]));
+    QVERIFY(holds_alternative<string>(jj17obj["Forth 4"  ]));
+    QVERIFY(holds_alternative<string>(jj17obj["Fifth 5"  ]));
+    QVERIFY(holds_alternative<string>(jj17obj["Sixth 6"  ]));
+    QVERIFY(holds_alternative<string>(jj17obj["Seventh 7"]));
+    QVERIFY(holds_alternative<string>(jj17obj["Eighth 8" ]));
+    QVERIFY(holds_alternative<string>(jj17obj["Ninth 9"  ]));
+    for(const auto &[k,v] : jj17obj)
+        qDebug() << QString::fromStdString(get<string>(v));
+    QCOMPARE(get<string>(jj17obj["First 1"  ]), testList[0]);
+    QCOMPARE(get<string>(jj17obj["Second 2" ]), testList[1]);
+    QCOMPARE(get<string>(jj17obj["Third 3"  ]), testList[2]);
+    QCOMPARE(get<string>(jj17obj["Forth 4"  ]), testList[3]);
+    QCOMPARE(get<string>(jj17obj["Fifth 5"  ]), testList[4]);
+    QCOMPARE(get<string>(jj17obj["Sixth 6"  ]), testList[5]);
+    QCOMPARE(get<string>(jj17obj["Seventh 7"]), testList[6]);
+    QCOMPARE(get<string>(jj17obj["Eighth 8" ]), testList[7]);
+    QCOMPARE(get<string>(jj17obj["Ninth 9"  ]), testList[8]);
+
+    Array jj17arr_w;
+    foreach (const auto& s, testList)
+        jj17arr_w.push_back(s);
+    filepath = dirpath.toStdString()+"/test_q2.json";
+    outfile.open(filepath);
+    outfile << jj17arr_w;
+    outfile.close();
+    infile.open(filepath);
+    jj17doc = parse(infile);
+    infile.close();
+
+    QVERIFY(holds_alternative<Array>(jj17doc));
+    Array& jj17arr = get<Array>(jj17doc);
+    QCOMPARE(jj17arr.size(),testList.size());
+    QVERIFY(holds_alternative<string>(jj17arr[0]));
+    QVERIFY(holds_alternative<string>(jj17arr[1]));
+    QVERIFY(holds_alternative<string>(jj17arr[2]));
+    QVERIFY(holds_alternative<string>(jj17arr[3]));
+    QVERIFY(holds_alternative<string>(jj17arr[4]));
+    QVERIFY(holds_alternative<string>(jj17arr[5]));
+    QVERIFY(holds_alternative<string>(jj17arr[6]));
+    QVERIFY(holds_alternative<string>(jj17arr[7]));
+    QVERIFY(holds_alternative<string>(jj17arr[8]));
+    QCOMPARE(get<string>(jj17arr[0]), testList[0]);
+    QCOMPARE(get<string>(jj17arr[1]), testList[1]);
+    QCOMPARE(get<string>(jj17arr[2]), testList[2]);
+    QCOMPARE(get<string>(jj17arr[3]), testList[3]);
+    QCOMPARE(get<string>(jj17arr[4]), testList[4]);
+    QCOMPARE(get<string>(jj17arr[5]), testList[5]);
+    QCOMPARE(get<string>(jj17arr[6]), testList[6]);
+    QCOMPARE(get<string>(jj17arr[7]), testList[7]);
+    QCOMPARE(get<string>(jj17arr[8]), testList[8]);
+
+    dir.removeRecursively();
+}
+
+struct MixLatinNum {
+    std::string  name{};
+    int          depth{0};
+    double       coefs[3]{0.,0.,0.};
+    MixLatinNum* next{nullptr};
+    bool         extention{false};
+    bool operator==(const MixLatinNum& oth) const {
+        bool coefsOk{true};
+        for(unsigned i = 0; i < 3; ++i)
+            coefsOk = coefsOk && qFuzzyCompare(coefs[i],oth.coefs[i]);
+        return           coefsOk       &&
+        (name        ==  oth.name     )&&
+        (depth       ==  oth.depth    )&&
+        (next        ==  oth.next || *next==*oth.next) &&
+        (extention   ==  oth.extention);
+    }
+    operator QJsonValue() {
+        QJsonObject obj;
+        obj.insert("name",QString::fromStdString(name));
+        obj.insert("depth",depth);
+        obj.insert("extention",extention);
+        QJsonArray arr;
+        for(int i=0;i<3;++i) arr.append(coefs[i]);
+        obj.insert("coefs",arr);
+        if(next) obj.insert("next",QJsonValue(*next));
+        return obj;
+    }
+    operator jjson17::Value() {
+        jjson17::Object obj;
+        obj.insert({"name",name});
+        obj.insert({"depth",depth});
+        obj.insert({"extention",extention});
+        jjson17::Array arr;
+        for(int i=0;i<3;++i) arr.push_back(coefs[i]);
+        obj.insert({"coefs",arr});
+        if(next) obj.insert({"next",*next});
+        return obj;
+    }
+    static std::vector<std::unique_ptr<MixLatinNum>>  from(const jjson17::Object& obj)
+    {
+        using namespace std;
+        vector<unique_ptr<MixLatinNum>> results;
+        nextObj(obj,results);
+        return results;
+    }
+private:
+    static MixLatinNum* nextObj(const jjson17::Object& obj, std::vector<std::unique_ptr<MixLatinNum>>& results)
+    {
+        using namespace std; using namespace jjson17;
+        auto res = make_unique<MixLatinNum>();
+        res->name       = get<string> (obj.at("name"));
+        res->depth      = get<int64_t>(obj.at("depth"));
+        res->extention  = get<bool>   (obj.at("extention"));
+        qDebug() << res->name.data() << res->depth;
+        const auto& arr = get<Array>(obj.at("coefs"));
+        if(arr.size() != 3) throw out_of_range("Wrong len of json array.");
+        for(int i=0; i < arr.size(); ++i)
+            res->coefs[i] = arr[i];         //using more safe 'operator double()' conversion
+        jjson17::Object copyobj = obj;
+        if(auto i = obj.find("next"); i!=obj.end()) {
+             qDebug() << QString::fromStdString(res->name) << std::distance(obj.begin(),i)<<std::distance(i,obj.end())<<'/'<<obj.size();
+             res->next = nextObj(get<Object>(i->second),results);
+        }
+        results.push_back(std::move(res)); //объекты будут в обратном порядке
+        return results.back().get();
+    }
+};
+
+void QJsonCompatibility::parse_4_mix_latin_nums()
+{
+    using namespace std;
+    using namespace jjson17;
+
+    try {
+    //QSKIP("ALREADY COMPLETE");
+    vector<MixLatinNum> dep2vec={{"Tetha",2},
+                                 {"Omicron",2,{1.,2.,3.},nullptr,true}};
+    vector<MixLatinNum> dep1vec={{"Kappa",1,{11.,22.,33.},&dep2vec[0]},
+                                 {"Omega",1,{8.,8.,8.},&dep2vec[1]}};
+    vector<MixLatinNum> dep0vec={{"Alpha",0,{0.,6.4,66.38}},
+                                 {"Beta",0,{0.1,0.2,0.3},&dep1vec[0],true},
+                                 {"Gamma",0,{0.,9.01,0.},&dep1vec[1]}};
+
+
+    QString dirpath  = scopeDirPath+"/parse_4_mix_latin_nums";
+    QString filepath = dirpath+"/test_q.json";
+    QDir dir("./");
+         dir.mkpath(dirpath);
+         dir.cd(dirpath);
+    QJsonArray qjsarr;
+    for(unsigned i =0; i < dep0vec.size(); ++i)
+        qjsarr.append(dep0vec[i]);
+
+    QJsonDocument qjsdoc(qjsarr);
+    QFile   f(filepath);
+            f.open(QIODevice::WriteOnly);
+            f.write(qjsdoc.toJson());
+            f.close();
+    ifstream infile;
+             infile.open(filepath.toStdString());
+    auto jj17doc = parse(infile);
+             infile.close();
+    QVERIFY(holds_alternative<Array>(jj17doc));
+    Array& jj17arr = get<Array>(jj17doc);
+    QCOMPARE(jj17arr.size(),dep0vec.size());
+    for(const auto& v : jj17arr)
+        qDebug() << QString::fromStdString(to_string(Record("n",v)));
+    QVERIFY(holds_alternative<Object>(jj17arr[0]));
+    QVERIFY(holds_alternative<Object>(jj17arr[1]));
+    QVERIFY(holds_alternative<Object>(jj17arr[2]));
+
+    auto alphaBranch = MixLatinNum::from(get<Object>(jj17arr[0]));
+    auto betaBranch  = MixLatinNum::from(get<Object>(jj17arr[1]));
+    auto gammaBranch = MixLatinNum::from(get<Object>(jj17arr[2]));
+
+    //back(), так как функция загрузки возвращает вектор в обратном порядке
+    QCOMPARE(*(alphaBranch.back()),dep0vec[0]);
+    QCOMPARE(*(betaBranch .back()),dep0vec[1]);
+    QCOMPARE(*(gammaBranch.back()),dep0vec[2]);
+    QVERIFY( !(*(alphaBranch[0])==dep0vec[1]) );
+    QVERIFY( !(*(betaBranch [0])==dep0vec[2]) );
+    QVERIFY( !(*(gammaBranch[0])==dep0vec[0]) );
+
+    } catch(std::exception& e) {
+        qDebug() << "got exception: "<<e.what();
+        QFAIL("STD::EXCEPTION");
+    } catch(...) {
+        qDebug() << "got undef exception: ";
+        QFAIL("UNDEF::EXCEPTION");
+    }
+}
 QTEST_APPLESS_MAIN(QJsonCompatibility)
 
 #include "tst_qjsoncompatibility.moc"
