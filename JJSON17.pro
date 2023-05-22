@@ -5,6 +5,8 @@ CONFIG += c++17
 CONFIG += qt console warn_on depend_includepath testcase
 CONFIG -= app_bundle
 
+DEFINES += JJSON17_PARSE
+DEFINES += PERFOMANCE_TEST
 
 TEMPLATE = app
 

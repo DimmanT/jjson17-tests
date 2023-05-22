@@ -1,6 +1,5 @@
 #include <QtTest>
 
-
 #include <QDir>
 #include <QJsonDocument>
 
@@ -568,7 +567,7 @@ void QJsonCompatibility::test_9_implicit_cast()
     double   pi  = testArr[1];
     unsigned g   = testArr[2];                  //Неавное приведение выполняет также неявное преобразование из floating-point в integer мат-округлением
     double   d   = testArr[3];
-    auto     nul = get<nullptr_t>(testArr[4]);
+    auto     nul = get<std::nullptr_t>(testArr[4]);
     int      i   = testArr[5];
     double   i2d = testArr[5];                  //Неавное приведение выполняет также неявное преобразование из integer в floating-point
     bool     b   = testArr[6];
@@ -593,13 +592,13 @@ void QJsonCompatibility::test_9_implicit_cast()
 
 
 template <typename PathType>
-static PathType getBinDir() {
+static PathType getBigDir() {
 #ifdef Q_OS_WINDOWS
     return "C:\\Windows\\";
-#elif Q_OS_UNIX
+#elif defined(Q_OS_LINUX) || defined(__linux)
     return "/usr/bin/";
 #else
-    static_assert(false,"Unsupported OS")
+    static_assert(false,"Unsupported OS");
 #endif
 }
 
@@ -609,14 +608,16 @@ static jjson17::Object subScanFunc (std::filesystem::directory_entry entry, int 
     namespace json = jjson17;
     namespace fs = std::filesystem;
 
+    auto isDir = entry.is_directory();
+
     json::Object obj {
-        {"Directory",entry.is_directory()},
-        {"Size",entry.file_size()},
+        {"Directory",isDir},
+        {"Size",isDir?0:entry.file_size()},
         {"Permitions",static_cast<int>(entry.status().permissions())},
         {"Depth",depth}
     };
 
-    if(entry.is_directory() && depth < MAX_DEPTH)
+    if(isDir && depth < MAX_DEPTH)
     {
         depth++;
         json::Object content;
@@ -632,14 +633,15 @@ static jjson17::Object subScanFunc (std::filesystem::directory_entry entry, int 
 //recursive dirscan
 static QJsonObject subScanFunc (const QFileInfo& entry, int depth, const int MAX_DEPTH=2, const int MAX_ELEMS_AT_LVL=-1)
 {
+    auto isDir = entry.isDir();
     QJsonObject obj {
-        {"Directory",entry.isDir()},
-        {"Size",entry.size()},
+        {"Directory", isDir},
+        {"Size",isDir ? 0 : entry.size()},
         {"Permitions",static_cast<int>(entry.permissions())},
         {"Depth",depth}
     };
 
-    if(entry.isDir() && depth < MAX_DEPTH)
+    if(isDir && depth < MAX_DEPTH)
     {
         depth++;
         QJsonObject content;
@@ -656,6 +658,7 @@ static QJsonObject subScanFunc (const QFileInfo& entry, int depth, const int MAX
 #define RAW_OFSTREAM    // служит для изменения способа записи напрямую через ofstream или через sstream
 void QJsonCompatibility::perf_1_dirscan()
 {
+    #ifdef PERFOMANCE_TEST
     namespace json = jjson17;
     namespace fs = std::filesystem;
     using namespace std::chrono;
@@ -670,7 +673,7 @@ void QJsonCompatibility::perf_1_dirscan()
     //....... std-way  .......
     uint32_t jjTotal{0};
     {
-        fs::directory_entry stdDir("C:/Windows/");//fs::directory_entry stdDir(getBinDir<fs::path>());
+        fs::directory_entry stdDir(getBigDir<std::string>());
         QVERIFY(stdDir.exists());
         auto before = steady_clock::now();
         json::Object jsonDirRoot = subScanFunc(stdDir,0);
@@ -707,7 +710,7 @@ void QJsonCompatibility::perf_1_dirscan()
 
     uint32_t qTotal{0};
     {
-        QFileInfo qDir(getBinDir<QString>());
+        QFileInfo qDir(getBigDir<QString>());
         QVERIFY(qDir.exists());
         auto before = steady_clock::now();
         auto jsonDirRoot = subScanFunc(qDir,0);
@@ -734,10 +737,15 @@ void QJsonCompatibility::perf_1_dirscan()
     qDebug()  << "JJSON vs QJSON"<< double(jjTotal)/qTotal<<"the less the best";
 
     dir.removeRecursively();
+    #else
+    QSKIP("skip perfomance testing")
+    #endif
+
 }
 
 void QJsonCompatibility::perf_2_dirscan()
 {
+    #ifdef PERFOMANCE_TEST
     namespace json = jjson17;
     namespace fs = std::filesystem;
     using namespace std::chrono;
@@ -755,7 +763,7 @@ void QJsonCompatibility::perf_2_dirscan()
     //....... std-way  .......
     uint32_t jjTotal{0};
     {
-        fs::directory_entry stdDir("C:/");
+        fs::directory_entry stdDir(getBigDir<std::string>()+"/..");
         QVERIFY(stdDir.exists());
         auto before = steady_clock::now();
         json::Object jsonDirRoot = subScanFunc(stdDir,0,MAX_DEPTH,MAX_ELEMS_AT_LVL);
@@ -792,7 +800,7 @@ void QJsonCompatibility::perf_2_dirscan()
 
     uint32_t qTotal{0};
     {
-        QFileInfo qDir("C:/");
+        QFileInfo qDir(getBigDir<QString>()+"/..");
         QVERIFY(qDir.exists());
         auto before = steady_clock::now();
         auto jsonDirRoot = subScanFunc(qDir,0,MAX_DEPTH,MAX_ELEMS_AT_LVL);
@@ -819,6 +827,9 @@ void QJsonCompatibility::perf_2_dirscan()
     qDebug()  << "JJSON vs QJSON"<< double(jjTotal)/qTotal<<"the less the best";
 
     dir.removeRecursively();
+    #else
+    QSKIP("skip perfomance test");
+    #endif
 }
 
 void QJsonCompatibility::parse_1_numbers()
@@ -1221,7 +1232,7 @@ private:
         qDebug() << res->name.data() << res->depth;
         const auto& arr = get<Array>(obj.at("coefs"));
         if(arr.size() != 3) throw out_of_range("Wrong len of json array.");
-        for(int i=0; i < arr.size(); ++i)
+        for(int i=0; i < int(arr.size()); ++i)
             res->coefs[i] = arr[i];         //using more safe 'operator double()' conversion
         jjson17::Object copyobj = obj;
         if(auto i = obj.find("next"); i!=obj.end()) {
